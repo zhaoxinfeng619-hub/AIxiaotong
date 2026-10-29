@@ -1,0 +1,18 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const C=require('../core.js');
+const msg=text=>({id:'MSG-test',role:'customer',text,at:new Date().toISOString()});
+const fixture=()=>({...C.localAnalysis([msg('希望降低月费')])});
+test('refusal persists across unrelated followups and is retained during a dispute',()=>{const r=C.localAnalysis(['别推荐了，直接帮我降套餐','好','账单好像多扣了钱'].map(msg));assert.equal(r.refused,true);assert.equal(r.action,'HUMAN_REVIEW');assert.deepEqual(r.candidate_policy_ids,[]);});
+test('renewed consent requires explicit operator confirmation',()=>{const messages=[{...msg('不用推荐'),id:'refusal'},{...msg('我现在愿意了解其他方案'),id:'renewed'}];assert.equal(C.localAnalysis(messages).refused,true);assert.equal(C.localAnalysis(messages).reconsent_pending,true);assert.equal(C.localAnalysis(messages,'renewed').refused,false);});
+test('conflicting contract statement requires review',()=>{assert.equal(C.localAnalysis([msg('我还有合约')]).action,'HUMAN_REVIEW');});
+test('malformed structured output and unsupported financial offers fail closed',()=>{assert.throws(()=>C.validateResult({summary:'test'}));const r=fixture();r.action='OFFER';r.candidate_policy_ids=['P039'];r.quote_ids=['Q1'];assert.throws(()=>C.validateResult(r),/资格与费用/);});
+test('completion without transaction receipt is rejected',()=>{const r=fixture();r.archive_draft.handling_status='completed';assert.throws(()=>C.validateResult(r),/归档/);});
+test('Dify adapter rejects advice violating persistent refusal',()=>{assert.throws(()=>C.adaptResult(fixture(),[msg('不用推荐')]),/拒绝/);});
+test('structured JSON inside markdown fence is accepted and preserves source',()=>{const r=C.adaptResult('```json\n'+JSON.stringify(fixture())+'\n```',[msg('有点贵')]);assert.equal(r.source,'dify');assert.equal(r.action,'CLARIFY');});
+test('explicit budget and usage are retained without repeatedly asking for budget',()=>{const r=C.localAnalysis([msg('我愿意了解，希望月费控制在40元以内，每月流量不到1GB'),msg('嗯，可以')]);assert.equal(r.kind,'willing');assert.equal(r.facts.length,2);assert.ok(!r.unknowns.includes('目标预算'));assert.ok(!r.customer_reply.includes('控制在多少'));});
+test('customer situation distinguishes requests and anchors decision to the original statement',()=>{const r=C.customerIntent([{...msg('有没有更便宜的低档套餐？'),id:'source'}]);assert.ok(r.labels.includes('换低档套餐'));assert.equal(r.status,'咨询比较');assert.equal(r.sourceId,'source');});
+test('refusal remains prominent when a later turn raises a billing dispute',()=>{const r=C.customerIntent([{...msg('不用推荐了，直接帮我降套餐'),id:'stop'}, {...msg('这个月账单多扣钱了'),id:'bill'}]);assert.equal(r.refused,true);assert.equal(r.level,3);assert.equal(r.sourceId,'stop');assert.ok(r.labels.includes('核查账单'));});
+test('request tags do not turn a negated cancellation into a cancellation intent',()=>{const r=C.customerIntent([msg('我不想销户，就是想便宜点')]);assert.ok(!r.labels.includes('销户'));assert.ok(r.labels.includes('降低费用'));});
+test('unrelated utterances retain an unknown decision rather than a fabricated score',()=>{const r=C.customerIntent([msg('你好')]);assert.equal(r.level,0);assert.equal(r.status,'待确认');assert.deepEqual(r.labels,['诉求待确认']);});
+test('three-band preference ruler distinguishes explicit retention from direct downgrade',()=>{assert.equal(C.preferenceState([msg('直接帮我降套餐')]).state,'down');assert.equal(C.preferenceState([msg('可以了解一下其他方案')]).state,'uncertain');assert.equal(C.preferenceState([msg('行，那我先不降了')]).state,'retain');assert.equal(C.preferenceState([msg('你好')]).state,'unknown');assert.notEqual(C.preferenceState([msg('我不想保留原套餐')]).state,'retain');});

@@ -1,0 +1,60 @@
+{
+  "version": "poc-1.0",
+  "synthetic_only": true,
+  "customers": [
+    {
+      "customer_id": "C001",
+      "authorized_account_key": "SYNTH-C001",
+      "synthetic": true,
+      "profile_tags": [
+        "高月费低用量"
+      ],
+      "snapshot": {
+        "source_id": "SNAP-C001",
+        "version": "1.0",
+        "as_of": "2026-10-28T23:59:59+08:00",
+        "fields": {
+          "scope": "POC-A",
+          "plan_id": "T129",
+          "account_status": "active",
+          "contract_status": "none",
+          "tenure_months": 24,
+          "monthly_usage": {
+            "month": "2026-09",
+            "data_mb": "300",
+            "voice_call_seconds": [
+              1800
+            ]
+          },
+          "bill": {
+            "month": "2026-09",
+            "total_fen": 12900,
+            "complete": true,
+            "line_items": {
+              "base_fee_fen": 12900,
+              "data_fee_fen": 0,
+              "voice_fee_fen": 0
+            },
+            "source_id": "BILL-C001",
+            "as_of": "2026-10-28T23:59:59+08:00"
+          },
+          "current_discount": null,
+          "bundle": false
+        }
+      },
+      "field_sources": {
+        "account": "SIM_CRM_T1",
+        "bill": "SIM_BILL_T1",
+        "monthly_usage": "SIM_USAGE_T1"
+      },
+      "unknowns": [],
+      "history": [
+        {
+          "source_id": "HIST-C001",
+          "as_of": "2026-09-30T23:59:59+08:00",
+          "text": "合成历史，仅作背景，不构成本次客户意愿"
+        }
+      ]
+    }
+  ]
+}
